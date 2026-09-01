@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fall 2026 Assignment Tracker</title>
+<style>
+:root {
+  --bg:#f7f7f5; --card:#ffffff; --text:#262626; --muted:#737373; --border:#e8e7e4;
+  --accent:#37352f; --soft:#f1f1ef; --danger:#b42318; --warn:#9a6700; --ok:#107c41;
+}
+* { box-sizing:border-box; }
+body { margin:0; font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); }
+.app { max-width:1400px; margin:0 auto; padding:28px 20px 60px; }
+.topbar { display:flex; gap:16px; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; margin-bottom:24px; }
+h1 { font-size:30px; margin:0 0 7px; letter-spacing:-.03em; }
+.sub { color:var(--muted); font-size:14px; }
+.controls { display:flex; gap:8px; flex-wrap:wrap; }
+button, select, input { font:inherit; }
+button { border:1px solid var(--border); background:var(--card); border-radius:8px; padding:9px 12px; cursor:pointer; }
+button:hover { background:var(--soft); }
+.grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:18px; }
+.metric { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:15px; }
+.metric .label { font-size:12px; color:var(--muted); }
+.metric .value { font-size:26px; font-weight:700; margin-top:4px; }
+.toolbar { display:grid; grid-template-columns:minmax(220px,2fr) repeat(4,minmax(140px,1fr)); gap:10px; margin:18px 0; }
+.toolbar input,.toolbar select { width:100%; border:1px solid var(--border); background:var(--card); border-radius:8px; padding:10px 11px; }
+.legend { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 18px; }
+.legend span { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+.dot { width:10px; height:10px; border-radius:3px; border:1px solid rgba(0,0,0,.07); }
+.section-title { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:24px 0 10px; }
+.section-title h2 { font-size:16px; margin:0; }
+.board { display:grid; grid-template-columns:repeat(4,minmax(240px,1fr)); gap:12px; align-items:start; overflow-x:auto; padding-bottom:4px; }
+.column { background:#efefec; border-radius:12px; padding:10px; min-height:180px; }
+.column-head { display:flex; justify-content:space-between; align-items:center; padding:4px 4px 9px; font-size:13px; font-weight:700; }
+.count { color:var(--muted); font-weight:500; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:10px; margin:8px 0; padding:12px; }
+.card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.badge { font-size:11px; border-radius:999px; padding:4px 7px; background:var(--soft); white-space:nowrap; }
+.course { display:inline-block; padding:3px 7px; border-radius:6px; font-size:11px; margin-bottom:7px; border:1px solid rgba(0,0,0,.05); }
+.title { font-weight:700; line-height:1.3; }
+.meta { margin-top:7px; font-size:12px; color:var(--muted); line-height:1.45; }
+.progress { margin-top:10px; height:7px; background:#ececea; border-radius:99px; overflow:hidden; }
+.progress > i { display:block; height:100%; background:#5b5b57; border-radius:99px; }
+.card-actions { display:flex; gap:7px; margin-top:10px; flex-wrap:wrap; }
+.card-actions select, .card-actions input { border:1px solid var(--border); border-radius:7px; background:#fff; padding:6px 7px; font-size:12px; }
+.card-actions input[type=number] { width:76px; }
+.overdue { color:var(--danger); font-weight:650; }
+.today { color:var(--warn); font-weight:650; }
+.table-wrap { overflow:auto; border:1px solid var(--border); border-radius:12px; background:var(--card); }
+table { border-collapse:collapse; width:100%; min-width:1050px; }
+th,td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:top; font-size:13px; }
+th { position:sticky; top:0; background:#fafaf9; z-index:1; font-size:12px; color:var(--muted); }
+tr:last-child td { border-bottom:0; }
+.small { font-size:12px; color:var(--muted); }
+.hidden { display:none !important; }
+.empty { padding:26px; text-align:center; color:var(--muted); }
+@media (max-width:900px) {
+  .grid { grid-template-columns:repeat(2,1fr); }
+  .toolbar { grid-template-columns:1fr 1fr; }
+  .toolbar input { grid-column:1 / -1; }
+}
+@media (max-width:560px) {
+  .grid { grid-template-columns:1fr 1fr; }
+  .toolbar { grid-template-columns:1fr; }
+  .toolbar input { grid-column:auto; }
+  .app { padding:18px 12px 40px; }
+  h1 { font-size:25px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div>
+      <h1>Fall 2026 Assignment Tracker</h1>
+      <div class="sub">Notion-style interactive tracker · changes save automatically on this device</div>
+    </div>
+    <div class="controls">
+      <button id="toggleView">Switch to table view</button>
+      <button id="resetBtn">Reset progress</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="metric"><div class="label">Total assignments</div><div class="value" id="totalMetric">0</div></div>
+    <div class="metric"><div class="label">Completed</div><div class="value" id="doneMetric">0</div></div>
+    <div class="metric"><div class="label">In progress</div><div class="value" id="progressMetric">0</div></div>
+    <div class="metric"><div class="label">Overall completion</div><div class="value" id="percentMetric">0%</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input id="search" placeholder="Search assignments, details, notes…">
+    <select id="courseFilter"><option value="">All classes</option></select>
+    <select id="statusFilter"><option value="">All statuses</option><option>Not Started</option><option>In Progress</option><option>Complete</option><option>Blocked</option></select>
+    <select id="priorityFilter"><option value="">All priorities</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select>
+    <select id="dateFilter"><option value="">All dates</option><option value="overdue">Overdue</option><option value="week">Next 7 days</option><option value="undated">Week/window only</option></select>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div id="boardView">
+    <div class="section-title"><h2>Board</h2><span class="small" id="visibleCount"></span></div>
+    <div class="board" id="board"></div>
+  </div>
+
+  <div id="tableView" class="hidden">
+    <div class="section-title"><h2>Master list</h2><span class="small" id="tableCount"></span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Due</th><th>Class</th><th>Type</th><th>Assignment</th><th>Details</th><th>Status</th><th>Progress</th><th>Priority</th><th>Notes</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const INITIAL = [{"due": "2026-09-01", "window": "", "course": "Jewelry CAD", "type": "Homework", "assignment": "HW 1", "details": "Mood board + 30 sketches", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-01", "window": "", "course": "Creative Technical Studio 1", "type": "Setup", "assignment": "Course setup", "details": "Supplies, patterns, Making Center trainings", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-03", "window": "", "course": "Design Studio 1", "type": "Project Work", "assignment": "Project 1 development", "details": "Materials + 3D garment + process slideshow", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-04", "window": "", "course": "Visual Communication Studio 1", "type": "Homework", "assignment": "5 fashion figure studies", "details": "Pencil/charcoal", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "", "window": "Sep 7–11", "course": "Introduction to Fashion Studies", "type": "Weekly Assignment", "assignment": "Subject Position Maps + Content Quiz", "details": "Due at start of your recitation; check Canvas for exact date/time", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-08", "window": "", "course": "Jewelry CAD", "type": "Homework", "assignment": "HW 2", "details": "Spec drawings + Rhino setup", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-08", "window": "", "course": "Creative Technical Studio 1", "type": "Homework", "assignment": "Hand stitches & closures", "details": "Sample Binder", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-10", "window": "", "course": "Design Studio 1", "type": "Major Project", "assignment": "Project 1", "details": "Final garment + presentation", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-10", "window": "", "course": "Design Studio 1", "type": "Homework", "assignment": "Project 2 Process Book", "details": "20+ pages + shirting swatches", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-11", "window": "", "course": "Visual Communication Studio 1", "type": "Homework", "assignment": "Anatomy sketches", "details": "3 per anatomical category", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "", "window": "Sep 14–18", "course": "Introduction to Fashion Studies", "type": "Quiz", "assignment": "Content Quiz", "details": "Due at start of your recitation; exact date/time depends on section", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-15", "window": "", "course": "Jewelry CAD", "type": "Homework", "assignment": "HW 3", "details": "Basic Rhino ring", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-17", "window": "", "course": "Design Studio 1", "type": "Checkpoint", "assignment": "Process Book", "details": "40 pages + suiting swatches", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-18", "window": "", "course": "Visual Communication Studio 1", "type": "Homework", "assignment": "2 croquis + flats", "details": "Renderings + technical flats", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-21", "window": "", "course": "Fundamentals of Developmental Psychology", "type": "Quiz", "assignment": "Canvas Quiz #1", "details": "Closes end of day; opened Sep 2", "status": "Not Started", "progress": 0, "priority": "High", "notes": ""}, {"due": "", "window": "Sep 21–25", "course": "Introduction to Fashion Studies", "type": "Weekly Assignment", "assignment": "5 Day Dress and Body Log + Content Quiz", "details": "Due at start of your recitation; exact date/time depends on section", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-22", "window": "", "course": "Jewelry CAD", "type": "Homework", "assignment": "HW 4", "details": "Engraving + stone", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-24", "window": "", "course": "Design Studio 1", "type": "Checkpoint", "assignment": "Process Book", "details": "60 pages + denim swatches", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-25", "window": "", "course": "Visual Communication Studio 1", "type": "Homework", "assignment": "2 croquis + flats", "details": "Project 2 work", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "", "window": "Sep 28–Oct 2", "course": "Introduction to Fashion Studies", "type": "Weekly Assignment", "assignment": "Fashion Symbols Discussion + Content Quiz", "details": "Due at start of recitation; begin DOCUMENT", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-29", "window": "", "course": "Jewelry CAD", "type": "Homework", "assignment": "HW 5", "details": "Stone with setting", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-09-29", "window": "", "course": "Creative Technical Studio 1", "type": "Homework", "assignment": "Stuffed Arm", "details": "Complete tutorial", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-01", "window": "", "course": "Design Studio 1", "type": "Checkpoint", "assignment": "Midterm prep", "details": "Revisions + lace swatches", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-02", "window": "", "course": "Visual Communication Studio 1", "type": "Homework", "assignment": "2 croquis + flats", "details": "Prepare sketchbook", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-05", "window": "", "course": "Fundamentals of Developmental Psychology", "type": "Quiz", "assignment": "Canvas Quiz #2", "details": "Closes end of day; opened Sep 23", "status": "Not Started", "progress": 0, "priority": "High", "notes": ""}, {"due": "", "window": "Oct 5–9", "course": "Introduction to Fashion Studies", "type": "Quiz / Project Work", "assignment": "Content Quiz + Work on DOCUMENT", "details": "Quiz due at start of recitation", "status": "Not Started", "progress": 0, "priority": "High", "notes": ""}, {"due": "2026-10-06", "window": "", "course": "Jewelry CAD", "type": "Homework", "assignment": "HW 6", "details": "Rhino modeling", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-06", "window": "", "course": "Creative Technical Studio 1", "type": "Major Project", "assignment": "Stuffed Arm", "details": "Due", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-08", "window": "", "course": "Design Studio 1", "type": "Major Project", "assignment": "Midterm Critique", "details": "Process Book + Portfolio + reflection", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-09", "window": "", "course": "Visual Communication Studio 1", "type": "Checkpoint", "assignment": "Project 2 prep", "details": "Presentation + sketchbook + deliverables", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "", "window": "Oct 12–16", "course": "Introduction to Fashion Studies", "type": "Quiz / Project Checkpoint", "assignment": "Content Quiz + Prepare DOCUMENT Draft", "details": "Due at start of recitation unless Canvas states otherwise", "status": "Not Started", "progress": 0, "priority": "High", "notes": ""}, {"due": "2026-10-13", "window": "", "course": "Jewelry CAD", "type": "Major Project", "assignment": "HW 7 / Project 1", "details": "Butterfly + HW3–7 PDF", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-13", "window": "", "course": "Creative Technical Studio 1", "type": "Homework", "assignment": "Zippers + skirt", "details": "Tutorials + begin skirt", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-14", "window": "", "course": "Fundamentals of Developmental Psychology", "type": "Exam", "assignment": "Midterm Exam", "details": "In class / online; open notes", "status": "Not Started", "progress": 0, "priority": "Critical", "notes": ""}, {"due": "2026-10-15", "window": "", "course": "Design Studio 1", "type": "Project Work", "assignment": "Project 3 start", "details": "20+ pages + athletic swatches", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-16", "window": "", "course": "Visual Communication Studio 1", "type": "Major Project", "assignment": "Project 2 Midterm", "details": "Final deliverables", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-20", "window": "", "course": "Jewelry CAD", "type": "Homework", "assignment": "HW 8", "details": "Mood board + 300-word statement", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-20", "window": "", "course": "Creative Technical Studio 1", "type": "Homework", "assignment": "Skirt finishing", "details": "Complete and press", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-22", "window": "", "course": "Design Studio 1", "type": "Checkpoint", "assignment": "Project 3 Process Book", "details": "40 pages + synthetic-fur swatches", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-23", "window": "", "course": "Visual Communication Studio 1", "type": "Homework", "assignment": "3 croquis + flats", "details": "Fabric rendering", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-23", "window": "Oct 19–23", "course": "Introduction to Fashion Studies", "type": "Major Project", "assignment": "DOCUMENT", "details": "Final due Friday Oct 23 at 11:59 PM EST", "status": "Not Started", "progress": 0, "priority": "Critical", "notes": "25% of course grade"}, {"due": "2026-10-26", "window": "", "course": "Fundamentals of Developmental Psychology", "type": "Quiz", "assignment": "Canvas Quiz #3", "details": "Closes end of day; opened Oct 7", "status": "Not Started", "progress": 0, "priority": "High", "notes": ""}, {"due": "", "window": "Oct 26–30", "course": "Introduction to Fashion Studies", "type": "Quiz", "assignment": "Content Quiz", "details": "Due at start of your recitation; exact date/time depends on section", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-27", "window": "", "course": "Creative Technical Studio 1", "type": "Major Project", "assignment": "Basic Skirt", "details": "Due", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-28", "window": "", "course": "Jewelry CAD", "type": "Homework", "assignment": "HW 9", "details": "Select 3 pieces + begin Piece 1", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-28", "window": "", "course": "Fundamentals of Developmental Psychology", "type": "Paper", "assignment": "Response Paper #1", "details": "2 pages, double spaced; critical response to a theory/model", "status": "Not Started", "progress": 0, "priority": "Critical", "notes": ""}, {"due": "2026-10-29", "window": "", "course": "Design Studio 1", "type": "Checkpoint", "assignment": "Concept presentation", "details": "60 pages + vegetable-leather swatches", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-10-30", "window": "", "course": "Visual Communication Studio 1", "type": "Homework", "assignment": "3 croquis + flats", "details": "Project 3", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "", "window": "Nov 2–6", "course": "Introduction to Fashion Studies", "type": "Project Work", "assignment": "Introduce OBJECT + Museum Visit TBD", "details": "No exact submission date stated in syllabus", "status": "Not Started", "progress": 0, "priority": "High", "notes": ""}, {"due": "2026-11-03", "window": "", "course": "Jewelry CAD", "type": "Homework", "assignment": "HW 10", "details": "Complete Piece 1", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-11-05", "window": "", "course": "Design Studio 1", "type": "Project Work", "assignment": "Portfolio start", "details": "Boards + lineup + 2 pages", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-11-06", "window": "", "course": "Visual Communication Studio 1", "type": "Project Work", "assignment": "Project 3", "details": "Begin illustrations/flats/presentation", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-11-09", "window": "", "course": "Fundamentals of Developmental Psychology", "type": "Quiz", "assignment": "Canvas Quiz #4", "details": "Closes end of day; opened Oct 28", "status": "Not Started", "progress": 0, "priority": "High", "notes": ""}, {"due": "", "window": "Nov 9–13", "course": "Introduction to Fashion Studies", "type": "Project Checkpoint", "assignment": "OBJECT Proposal", "details": "Due during Week 11 at start of recitation; check Canvas for exact date/time", "status": "Not Started", "progress": 0, "priority": "High", "notes": ""}, {"due": "", "window": "Nov 9–27", "course": "Introduction to Fashion Studies", "type": "Project Checkpoint", "assignment": "Recitation Leader Check-In", "details": "Occurs in Weeks 11/12/13; exact timing not specified", "status": "Not Started", "progress": 0, "priority": "High", "notes": ""}, {"due": "2026-11-11", "window": "", "course": "Jewelry CAD", "type": "Homework", "assignment": "HW 11", "details": "Begin Piece 2", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-11-12", "window": "", "course": "Design Studio 1", "type": "Checkpoint", "assignment": "Portfolio 50%", "details": "5 design pages", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "", "window": "Nov 16–20", "course": "Introduction to Fashion Studies", "type": "Project Checkpoint", "assignment": "OBJECT Research Documentation", "details": "Due during Week 12 at start of recitation; check Canvas for exact date/time", "status": "Not Started", "progress": 0, "priority": "High", "notes": ""}, {"due": "2026-11-17", "window": "", "course": "Jewelry CAD", "type": "Homework", "assignment": "HW 12", "details": "Complete Piece 2", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-11-17", "window": "", "course": "Creative Technical Studio 1", "type": "Major Project", "assignment": "Sewn Bodice Sloper", "details": "Due", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-11-19", "window": "", "course": "Design Studio 1", "type": "Checkpoint", "assignment": "Portfolio 90%", "details": "8 pages + Fabric Book", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-11-23", "window": "", "course": "Fundamentals of Developmental Psychology", "type": "Paper", "assignment": "Response Paper #2", "details": "2 pages, double spaced; apply course concepts to development", "status": "Not Started", "progress": 0, "priority": "Critical", "notes": ""}, {"due": "", "window": "Nov 23–27", "course": "Introduction to Fashion Studies", "type": "Project Checkpoint", "assignment": "OBJECT Outline", "details": "Due during Week 13 at start of recitation; check Canvas. Tuesday sections meet Nov 24; Wednesday section is asynchronous", "status": "Not Started", "progress": 0, "priority": "High", "notes": ""}, {"due": "2026-11-24", "window": "", "course": "Creative Technical Studio 1", "type": "Major Project", "assignment": "Sample Binder + Dart Rotation", "details": "10 patterns + muslin", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "", "window": "Nov 30–Dec 4", "course": "Introduction to Fashion Studies", "type": "Project Checkpoint", "assignment": "OBJECT Rough Draft", "details": "Due during Week 14 at start of recitation; check Canvas for exact date/time", "status": "Not Started", "progress": 0, "priority": "High", "notes": ""}, {"due": "2026-12-01", "window": "", "course": "Creative Technical Studio 1", "type": "Project Work", "assignment": "Slashing & Spreading", "details": "10 patterns + toile", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-12-02", "window": "", "course": "Jewelry CAD", "type": "Homework", "assignment": "HW 13", "details": "Begin Piece 3", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-12-02", "window": "", "course": "Fundamentals of Developmental Psychology", "type": "Quiz", "assignment": "Canvas Quiz #5", "details": "Closes end of day; opened Nov 11", "status": "Not Started", "progress": 0, "priority": "High", "notes": ""}, {"due": "2026-12-03", "window": "", "course": "Design Studio 1", "type": "Final", "assignment": "Project 3 Final", "details": "Portfolio + Process Book + reflection", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-12-04", "window": "", "course": "Visual Communication Studio 1", "type": "Final", "assignment": "Project 3 Final", "details": "Presentation + sketchbook + deliverables", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "", "window": "Dec 7–11", "course": "Introduction to Fashion Studies", "type": "Weekly Assignment", "assignment": "Reflection Questions", "details": "Due at start of recitation; exact date/time depends on section", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-12-08", "window": "", "course": "Jewelry CAD", "type": "Final Prep", "assignment": "HW 14", "details": "Complete Piece 3 + final PDF/model", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-12-08", "window": "", "course": "Creative Technical Studio 1", "type": "Final", "assignment": "Slashing & Spreading", "details": "Patterns + muslin + Process Book", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-12-09", "window": "", "course": "Jewelry CAD", "type": "Final", "assignment": "Capsule Collection", "details": "3 pieces + statement + printed piece", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-12-10", "window": "", "course": "Design Studio 1", "type": "Event", "assignment": "Open Studios", "details": "Final work", "status": "Not Started", "progress": 0, "priority": "Medium", "notes": ""}, {"due": "2026-12-11", "window": "Dec 7–11", "course": "Introduction to Fashion Studies", "type": "Final", "assignment": "OBJECT", "details": "Final due Friday Dec 11 at 11:59 PM EST", "status": "Not Started", "progress": 0, "priority": "Critical", "notes": "25% of course grade"}, {"due": "2026-12-14", "window": "", "course": "Fundamentals of Developmental Psychology", "type": "Final", "assignment": "Final Exam", "details": "In class / online; open notes", "status": "Not Started", "progress": 0, "priority": "Critical", "notes": ""}];
+const COURSE_COLORS = {"Design Studio 1": "#DDEBF7", "Creative Technical Studio 1": "#E2F0D9", "Jewelry CAD": "#FFF2CC", "Visual Communication Studio 1": "#FCE4D6", "Introduction to Fashion Studies": "#D9EAD3", "Fundamentals of Developmental Psychology": "#E4DFEC"};
+const STORE_KEY = "fall2026-assignment-tracker-v2";
+const statuses = ["Not Started","In Progress","Complete","Blocked"];
+let state = loadState();
+let tableMode = false;
+
+function loadState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+    if (Array.isArray(saved) && saved.length === INITIAL.length) return saved;
+  } catch(e) {}
+  return INITIAL.map((x,i)=>({...x,id:i}));
+}
+function saveState() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+function parseDate(s) {
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return null;
+  return new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+}
+function todayUTC() {
+  const d=new Date();
+  return new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+}
+function dateLabel(item) {
+  if (item.due) {
+    const d=parseDate(item.due);
+    return d.toLocaleDateString(undefined,{month:"short",day:"numeric",timeZone:"UTC"});
+  }
+  return item.window || "No exact date";
+}
+function dueClass(item) {
+  const d=parseDate(item.due), t=todayUTC();
+  if (!d || item.status==="Complete") return "";
+  if (d < t) return "overdue";
+  if (+d === +t) return "today";
+  return "";
+}
+function matches(item) {
+  const q=document.getElementById("search").value.trim().toLowerCase();
+  const cf=document.getElementById("courseFilter").value;
+  const sf=document.getElementById("statusFilter").value;
+  const pf=document.getElementById("priorityFilter").value;
+  const df=document.getElementById("dateFilter").value;
+  if (cf && item.course!==cf) return false;
+  if (sf && item.status!==sf) return false;
+  if (pf && item.priority!==pf) return false;
+  if (q && ![item.course,item.type,item.assignment,item.details,item.notes,item.window].join(" ").toLowerCase().includes(q)) return false;
+  if (df) {
+    const d=parseDate(item.due), t=todayUTC();
+    if (df==="overdue" && (!d || d>=t || item.status==="Complete")) return false;
+    if (df==="week") {
+      const end=new Date(t); end.setUTCDate(end.getUTCDate()+7);
+      if (!d || d<t || d>end) return false;
+    }
+    if (df==="undated" && d) return false;
+  }
+  return true;
+}
+function visibleItems() { return state.filter(matches).sort((a,b)=> {
+  const da=parseDate(a.due), db=parseDate(b.due);
+  if (da && db) return da-db;
+  if (da) return -1;
+  if (db) return 1;
+  return a.window.localeCompare(b.window);
+}); }
+
+function renderMetrics() {
+  const total=state.length;
+  const done=state.filter(x=>x.status==="Complete").length;
+  const prog=state.filter(x=>x.status==="In Progress").length;
+  const avg=total ? Math.round(state.reduce((s,x)=>s+(Number(x.progress)||0),0)/total) : 0;
+  totalMetric.textContent=total; doneMetric.textContent=done; progressMetric.textContent=prog; percentMetric.textContent=avg+"%";
+}
+function statusSelect(item) {
+  const options=statuses.map(s=>`<option${s===item.status?" selected":""}>${s}</option>`).join("");
+  return `<select data-action="status" data-id="${item.id}">${options}</select>`;
+}
+function prioritySelect(item) {
+  return `<select data-action="priority" data-id="${item.id}">${["Low","Medium","High","Critical"].map(s=>`<option${s===item.priority?" selected":""}>${s}</option>`).join("")}</select>`;
+}
+function cardHtml(item) {
+  const color=COURSE_COLORS[item.course]||"#eee";
+  return `<div class="card">
+    <div class="course" style="background:${color}">${esc(item.course)}</div>
+    <div class="card-top"><div class="title">${esc(item.assignment)}</div><span class="badge ${dueClass(item)}">${esc(dateLabel(item))}</span></div>
+    <div class="meta">${esc(item.type)}${item.details? " · "+esc(item.details):""}</div>
+    <div class="progress"><i style="width:${item.progress}%"></i></div>
+    <div class="card-actions">
+      ${statusSelect(item)}
+      <input data-action="progress" data-id="${item.id}" type="number" min="0" max="100" value="${item.progress}" aria-label="Percent complete"> 
+      ${prioritySelect(item)}
+    </div>
+  </div>`;
+}
+function renderBoard() {
+  const items=visibleItems();
+  visibleCount.textContent=items.length+" shown";
+  const groups=statuses.map(s=>({name:s,items:items.filter(x=>x.status===s)}));
+  board.innerHTML=groups.map(g=>`<section class="column"><div class="column-head"><span>${g.name}</span><span class="count">${g.items.length}</span></div>${g.items.map(cardHtml).join("") || '<div class="empty">No items</div>'}</section>`).join("");
+}
+function renderTable() {
+  const items=visibleItems();
+  tableCount.textContent=items.length+" shown";
+  tbody.innerHTML=items.map(item=>`<tr>
+    <td class="${dueClass(item)}">${esc(dateLabel(item))}</td>
+    <td><span class="course" style="background:${COURSE_COLORS[item.course]||"#eee"}">${esc(item.course)}</span></td>
+    <td>${esc(item.type)}</td><td><b>${esc(item.assignment)}</b></td>
+    <td>${esc(item.details)}</td><td>${statusSelect(item)}</td>
+    <td><input data-action="progress" data-id="${item.id}" type="number" min="0" max="100" value="${item.progress}" style="width:72px">%</td>
+    <td>${prioritySelect(item)}</td>
+    <td><input data-action="notes" data-id="${item.id}" value="${escAttr(item.notes)}" placeholder="Add note" style="min-width:160px;border:1px solid #e8e7e4;border-radius:6px;padding:6px"></td>
+  </tr>`).join("");
+}
+function render() { renderMetrics(); renderBoard(); renderTable(); }
+function esc(s) { return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m])); }
+function escAttr(s) { return esc(s).replace(/`/g,"&#096;"); }
+
+document.querySelectorAll("#search,#courseFilter,#statusFilter,#priorityFilter,#dateFilter").forEach(el=>el.addEventListener("input",render));
+document.addEventListener("change",e=>{
+  const el=e.target, action=el.dataset.action, id=Number(el.dataset.id);
+  if (!action || !Number.isInteger(id)) return;
+  const item=state.find(x=>x.id===id); if(!item) return;
+  if(action==="status") { item.status=el.value; if(el.value==="Complete") item.progress=100; }
+  if(action==="priority") item.priority=el.value;
+  if(action==="progress") { item.progress=Math.max(0,Math.min(100,Number(el.value)||0)); if(item.progress===100) item.status="Complete"; else if(item.progress>0 && item.status==="Not Started") item.status="In Progress"; }
+  if(action==="notes") item.notes=el.value;
+  saveState(); render();
+});
+document.addEventListener("input",e=>{
+  const el=e.target, action=el.dataset.action, id=Number(el.dataset.id);
+  if(action!=="notes" || !Number.isInteger(id)) return;
+  const item=state.find(x=>x.id===id); if(item) { item.notes=el.value; saveState(); }
+});
+
+toggleView.addEventListener("click",()=>{
+  tableMode=!tableMode;
+  boardView.classList.toggle("hidden",tableMode);
+  tableView.classList.toggle("hidden",!tableMode);
+  toggleView.textContent=tableMode?"Switch to board view":"Switch to table view";
+});
+resetBtn.addEventListener("click",()=>{
+  if(confirm("Reset all statuses, progress, priorities, and notes to the original tracker?")) {
+    state=INITIAL.map((x,i)=>({...x,id:i})); saveState(); render();
+  }
+});
+
+Object.keys(COURSE_COLORS).forEach(c=>{
+  const o=document.createElement("option"); o.value=c; o.textContent=c; courseFilter.appendChild(o);
+  const s=document.createElement("span"); s.innerHTML=`<i class="dot" style="background:${COURSE_COLORS[c]}"></i>${esc(c)}`; legend.appendChild(s);
+});
+render();
+</script>
+</body>
+</html>
